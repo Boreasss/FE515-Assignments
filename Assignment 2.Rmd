@@ -1,0 +1,62 @@
+---
+title: "Assignment 2"
+author: "You Wang"
+date: "9/30/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Q1
+```{r}
+seed <- as.numeric(Sys.time())  # set seed in global environment
+rnd <- function(n){
+  m <- 244944
+  a <- 1597
+  b <- 51749
+  x <- rep(NA, n)
+  x[1] <- (a * seed + b) %% m
+  for(i in 1:(n-1)){
+    x[i+1] <- (a * x[i] + b) %% m
+  }
+  seed <<- x[n]  # change the seed in global environment
+  return(x/m)
+}
+
+chisq <- qchisq(rnd(10000), df=10)
+hist(chisq, main = "Chi-squared Distribution with rnd function")
+hist(chisq, nclass = 40, main = "Chi-squared Distribution with rnd function(40 cells)")
+hist(rchisq(10000, df=10), nclass = 40, main = "Chi-squared Distribution with rchisq")
+```
+
+### Q2
+```{r}
+seed <- as.numeric(Sys.time())
+N <- 100000
+x <- runif(N)  # runif(n, min = 0, max = 1)
+y <- runif(N)
+z <- runif(N)
+
+n <- sum(x^2 + y^2 + z^2 <= 1)
+v <- 8 * n / N
+v
+```
+
+### Q3
+```{r}
+jpm <- read.csv(file = "JPM.csv")
+jpm$Date <- as.Date(jpm$Date)
+
+par(mfcol = c(2,2))
+
+plot(jpm$Date, jpm$Close, type = "l", main = "JPM", xlab = "Date", ylab = "Adjusted Close Price", col = "red")  # first
+
+plot(jpm$Open, jpm$Close, xlab = "Open Price", ylab = "Close Price") ## second
+
+c <- cut(jpm$Adj.Close, breaks = 4) # cut into 4 intervals
+
+barplot(table(cut(jpm$Adj.Close, breaks = 4)), xlab = "Adjusted Close Price", ylab = "Frequency")  # third
+
+boxplot(jpm$Volume ~ c, xlab = "Adjusted Close Price", ylab = "Volume") 
+
+```

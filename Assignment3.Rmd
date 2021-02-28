@@ -1,0 +1,128 @@
+---
+title: "Assignment 3"
+author: "You Wang"
+date: "10/23/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Question 1:
+```{r}
+library(quantmod)
+
+# download option prices of ^VIX for all expiration dates
+VIX <- getOptionChain("^VIX", NULL)
+
+# current price
+LastQuoteVIX <- getQuote("^VIX")$Last
+
+op <- function(option){
+  # calculate price
+  option$calls$Price <- 0.5 * (option$calls$Bid + option$calls$Ask)
+  # calculate moneyness
+  option$calls$moneyness <- ifelse(option$calls$Strike > LastQuoteVIX, TRUE, FALSE)
+  # keep specified columns
+  option$calls <- option$calls[c("Strike", "Bid", "Ask", "Price", "moneyness")]
+  
+  # the same operation for puts
+  option$puts$Price <- 0.5 * (option$puts$Bid + option$puts$Ask)
+  option$puts$moneyness <- ifelse(option$puts$Strike < LastQuoteVIX, TRUE, FALSE)
+  option$puts <- option$puts[c("Strike", "Bid", "Ask", "Price", "moneyness")]
+  
+  return(option)
+}
+
+
+VIX <- lapply(VIX, op)
+
+# here check if VIX is changed properly
+head(VIX$Oct.28.2020)
+
+# deal with objects about dates
+exp = names(VIX)
+exp <- as.Date(exp, format = "%b.%d.%Y")
+exp <- format(exp, "%Y-%m-%d")
+today = format(Sys.Date(), "%Y-%m-%d")
+
+# set location and save the data
+setwd("/Users/youwang/Desktop/R/A3-Q1")
+for (i in 1:length(exp)){
+  write.csv(VIX[[i]]$calls, file = paste("VIXdata", today, "Exp", exp[i], "calls.csv", sep = ""))
+  write.csv(VIX[[i]]$puts, file = paste("VIXdata", today, "Exp", exp[i], "puts.csv", sep = ""))
+}
+
+```
+
+
+## Question 2
+```{r}
+# skewness function
+skew <- function(x, adjusted){
+  n <- length(x)
+  # m_2
+  x.m2.central <- mean((x-mean(x)) ^2)
+  # m_3
+  x.m3.central <- mean((x-mean(x)) ^3)
+  # \tilda{m_3}
+  x.m3.tilda <- x.m3.central / (x.m2.central) ^ 1.5
+  # \hat{m_3}
+  x.m3.hat <- sqrt(n * (n - 1)) * x.m3.tilda / (n - 2)
+  
+  if (adjusted == TRUE){
+    return(x.m3.hat)
+  }
+  else if(adjusted == FALSE){
+    return(x.m3.tilda)
+  }
+  else{
+    print("adjusted must be a boolean variable!")
+  }
+}
+
+# kurtosis function
+kurt <- function(x, adjusted){
+  n <- length(x)
+  # m_2
+  x.m2.central <- mean((x - mean(x)) ^2)
+  # m_4
+  x.m4.central <- mean((x - mean(x)) ^4)
+  # \tilda{m_4}
+  x.m4.tilda <- x.m4.central / (x.m2.central) ^ (4/2)
+  # \hat{m_4}
+  x.m4.hat <- (n - 1) / ((n - 2) * (n - 3)) * ((n + 1) * x.m4.tilda - 3 * (n - 1)) + 3
+  
+  if (adjusted == TRUE){
+    return(x.m4.hat)
+  }
+  else if(adjusted == FALSE){
+    return(x.m4.tilda)
+  }
+  else{
+    print("adjusted must be a boolean variable!")
+  }
+}
+
+# download the data of SPY and compute the log return
+library(quantmod)
+spy <- getSymbols(Symbols = "SPY", from = "2012-01-01", to = "2013-12-31", auto.assign = F)
+spy.log.price <- log(spy$SPY.Adjusted)
+spy.log.return <- diff(spy.log.price)
+
+# the first value is 'Na' so I strip it out
+spy.log.return <- spy.log.return[-1]
+head(spy.log.return) # check if it's right
+
+# skewness
+spy.skew.adjusted <- skew(spy.log.return, T)
+spy.skew.unajusted <- skew(spy.log.return, F)
+
+# kurtosis
+spy.kurt.adjusted <- kurt(spy.log.return, T)
+spy.kurt.unadjusted <- kurt(spy.log.return, F)
+
+spy.skew.adjusted
+spy.skew.unajusted
+spy.kurt.adjusted
+spy.kurt.unadjusted
+```

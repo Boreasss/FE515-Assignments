@@ -1,0 +1,65 @@
+---
+title: "Assignment 4"
+author: "You Wang"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+### Question 1
+```{r}
+BS.model <- function(type='call', S0, K, T1, sigma, r){
+  d1 <- (log(S0/K) + (r+0.5*sigma^2)*T1)/(sigma*sqrt(T1))
+  d2 <- d1 - sigma*sqrt(T1)
+  if(type == 'call'){
+    return (S0*pnorm(d1) - exp(-r*T1)*K*pnorm(d2))
+  }
+  else if(type == 'put'){
+    return (-S0*pnorm(-d1) + exp(-r*T1)*K*pnorm(-d2))
+  }
+}
+
+S0 = 100
+K = 100
+T1 = 1
+sigma = 0.2
+r = 0.05
+
+# prices
+BS.model('call', S0, K, T1, sigma, r)
+BS.model('put', S0, K, T1, sigma, r)
+
+# volatility
+implied.vol <- function(type='call', S0, K, T1, r, P){
+  price.diff <- function(sigma){
+    return (BS.model(type, S0, K, T1, sigma, r) - P)
+  }
+  return (uniroot(price.diff, interval = c(0.01, 1))$root)
+}
+
+P1 = 10
+P2 = 5
+implied.vol('call', S0, K, T1, r, P1)
+implied.vol('put', S0, K, T1, r, P2)
+```
+
+### Question 2
+```{r}
+m = 10000
+n = 252
+S0 = 100
+K = 100
+T1 = 1
+sigma = 0.2
+r = 0.05
+h = T1/n
+S.vec <- rep(S0, m)
+Z <- matrix(rnorm(n*m), nrow = n)
+for (i in 1:n){
+  S.vec <- S.vec * (1 + r*h + sigma * Z[i,] * sqrt(h))
+}
+P = exp(-r*T1) * mean(pmax(100 - S.vec, 0))
+P
+```
+It's very close to 5.57.
+

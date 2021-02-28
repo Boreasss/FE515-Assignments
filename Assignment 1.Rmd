@@ -1,0 +1,108 @@
+---
+title: "Assignment 1"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Question 1
+```{r}
+# vector x and its length
+# x <- seq(5, 35, by=2)
+x <- seq(5, 35, 2)
+length(x)
+
+# matrix A
+A <- matrix(x, nrow=4, ncol=4, byrow = T)
+A <- matrix(x, 4, 4, T)
+eigen(A)$values # eigenvalue of A
+
+# do some change on A
+A[1:2, 1:2] <- 7
+A[c(1,2), c(1,2)] <- 7
+det(A) # det of A
+solve(A) # inverse of A
+
+# Vector b
+b = A[1, ]
+y <- solve(A, b)
+y
+
+# function to find min
+pmin(y, pi/2)
+
+# diag function 
+# diagMatrix <- diag(1:10, 10, 10)
+diag(1:10)
+diagMatrix
+```
+## Question 2
+```{r}
+s <- rep(NA, 51) # s <- NULL
+s[1] <- 0
+s[2] <- 1
+for(i in 3:51){
+  s[i] = s[i-1] + s[i-2]
+}
+s[4]
+s[51]
+```
+## Question 3
+```{r}
+for(i in 1:100){
+  if(i %% 3 == 0 & i %% 5 == 0){
+    print(i)
+  }
+}
+```
+## Question 4
+```{r}
+f <- function(n){
+  # check if n<15
+  if(n < 15){
+    return("No divisible number found.")
+  }
+  x <- c()
+  for(i in 1:n){
+    if(i %% 3 == 0 & i %% 5 == 0){
+      x <- c(x,i)
+    }
+  }
+  return (x)
+}
+
+f(100)
+f(200)
+```
+## Question 5
+```{r}
+f <- function(a,b){
+  # check if there's illegal value
+  if(a <= 0 | b <= 0){
+    return("illegal value input")
+  }
+  if(a > b){
+    temp <- b
+    b <- a
+    a <- temp
+  }
+  for(i in b:(a*b)){
+    if(i %% a == 0 & i %% b == 0){
+      return(i)
+    }
+  }
+}
+f(3,5)
+f(6,10)
+```
+```{r}
+while(!(i %% a == 0 && i %% b == 0)){
+  i <- i + 1
+}
+```
+## Question 6
+```{r}
+jpm <- read.csv("JPM.csv")
+jpm.sub <- jpm[2:5]
+sapply(jpm.sub, mean)
+```

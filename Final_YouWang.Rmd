@@ -1,0 +1,176 @@
+---
+title: "FE515-Final"
+author: "You Wang"
+date: "12/20/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Question 1
+```{r, warning=FALSE}
+library(quantmod)
+spy <- getSymbols(Symbols = "SPY", from = "2019-01-01", auto.assign = F)
+spy.log.price <- log(spy$SPY.Adjusted)
+spy.log.return <- diff(spy.log.price)
+plot(spy.log.return, col = 'red', main = "Daily log return of SPY")
+```
+
+# Question 2
+```{r}
+# skewness function
+skew <- function(x, adjusted){
+  n <- length(x)
+  # m_2
+  x.m2.central <- mean((x-mean(x)) ^2)
+  # m_3
+  x.m3.central <- mean((x-mean(x)) ^3)
+  # \tilda{m_3}
+  x.m3.tilda <- x.m3.central / (x.m2.central) ^ 1.5
+  # \hat{m_3}
+  x.m3.hat <- sqrt(n * (n - 1)) * x.m3.tilda / (n - 2)
+  
+  if (adjusted == TRUE){
+    return(x.m3.hat)
+  }
+  else if(adjusted == FALSE){
+    return(x.m3.tilda)
+  }
+  else{
+    print("adjusted must be a boolean variable!")
+  }
+}
+
+# kurtosis function
+kurt <- function(x, adjusted){
+  n <- length(x)
+  # m_2
+  x.m2.central <- mean((x - mean(x)) ^2)
+  # m_4
+  x.m4.central <- mean((x - mean(x)) ^4)
+  # \tilda{m_4}
+  x.m4.tilda <- x.m4.central / (x.m2.central) ^ (4/2)
+  # \hat{m_4}
+  x.m4.hat <- (n - 1) / ((n - 2) * (n - 3)) * ((n + 1) * x.m4.tilda - 3 * (n - 1)) + 3
+  
+  if (adjusted == TRUE){
+    return(x.m4.hat)
+  }
+  else if(adjusted == FALSE){
+    return(x.m4.tilda)
+  }
+  else{
+    print("adjusted must be a boolean variable!")
+  }
+}
+
+# remove nan
+spy.log.return <- spy.log.return[-1]
+
+
+SPY.skewness <- c(skew(spy.log.return,F), skew(spy.log.return,T))
+SPY.kurtosis <- c(kurt(spy.log.return,F), kurt(spy.log.return,T))
+
+df <- data.frame(SPY.skewness, SPY.kurtosis, row.names=c("Unadjuseted", "Adjusted"))
+df
+```
+
+# Question 3
+```{r}
+SPY.options.all <- getOptionChain("SPY", NULL)# all options 
+maturities.SPY <- names(SPY.options.all)# all maturities 
+T.vec <- (as.Date(maturities.SPY,"%b.%d.%Y")-Sys.Date())/365 
+T.vec <- as.numeric(T.vec)# all time to maturities
+S0 <- getQuote("SPY")$Last
+r <- 1.54*0.01
+
+# bisection
+bisection <- function(f, a, b, tol=0.001, N.max=1000){
+  f.a <- f(a)
+  f.b <- f(b)
+  if(is.na(f.a*f.b) || f.a*f.b>0){
+    return(NA)
+  }
+  else if(f.a ==0){
+    return(a)
+  }
+  else if(f.b ==0){
+    return(b)
+  }
+  for(n in 1:N.max){
+    c <- (a+b)/2
+    f.c <- f(c)
+    if(f.c==0 || abs(b-a)<tol){
+      break
+    }
+    if(f.a*f.c<0){
+      b <- c
+      f.b <- f.c
+    }
+    else{
+      a <- c
+      f.a <- f.c
+    }
+  }
+  return(c)
+}
+
+
+# BS Model
+BS.model <- function(type='call', S0, K, T1, sigma, r){
+  d1 <- (log(S0/K) + (r+0.5*sigma^2)*T1)/(sigma*sqrt(T1))
+  d2 <- d1 - sigma*sqrt(T1)
+  if(type == 'call'){
+    return (S0*pnorm(d1) - exp(-r*T1)*K*pnorm(d2))
+  }
+  else if(type == 'put'){
+    return (-S0*pnorm(-d1) + exp(-r*T1)*K*pnorm(-d2))
+  }
+}
+# vol
+implied.vol <- function(type='call', S0, K, T1, r, P){
+  price.diff <- function(sigma){
+    return (BS.model(type, S0, K, T1, sigma, r) - P)
+  }
+  return (bisection(price.diff, 0.0001, 1))
+}
+
+
+calc <- function(x, T1){
+  # add a column of price 
+  x$calls$Price <- 0.5*(x$calls$Bid + x$calls$Ask) 
+  x$puts$Price <- 0.5*(x$puts$Bid + x$puts$Ask)
+  
+  # add a column of implied volatility 
+  call.func <- function(K,P)implied.vol('call', S0, K, T1, r, P)
+  put.func <- function(K,P)implied.vol('put', S0, K, T1, r, P)
+  
+  x$calls$ImpliedVol <- mapply(call.func, x$calls$Strike, x$calls$Price)
+  x$puts$ImpliedVol <- mapply(put.func, x$puts$Strike, x$puts$Price)
+  
+  # delete columns 
+  x$calls <- x$calls[c("Bid","Ask","Strike","Price","ImpliedVol")]
+  x$puts <- x$puts[c("Bid","Ask","Strike","Price", "ImpliedVol")]
+  return(x)
+}
+
+SPY.options.all <- mapply(calc, SPY.options.all, T.vec, SIMPLIFY = FALSE)
+
+
+plot(NA,  xlim=c(100,460), ylim=c(0,1), xlab="Strike", ylab="ImpliedVol")
+lines(SPY.options.all$Mar.19.2021$puts$Strike, SPY.options.all$Mar.19.2021$puts$ImpliedVol,col='red')
+lines(SPY.options.all$Apr.16.2021$puts$Strike,SPY.options.all$Apr.16.2021$puts$ImpliedVol, col='blue')
+lines(SPY.options.all$May.21.2021$puts$Strike, SPY.options.all$May.21.2021$puts$ImpliedVol, col='green')
+legend("topright", c("Mar.19.2021","Apr.16.2021","May.21.2021"), fill=c("red","blue","green"))
+
+setwd("/Users/youwang/Desktop/R/Assignments/Final/data")
+exp = names(SPY.options.all)
+exp <- as.Date(exp, format = "%b.%d.%Y") 
+exp <- format(exp, "%Y-%m-%d") 
+today = format(Sys.Date(), "%Y-%m-%d")
+for(i in 1:length(exp)){
+  write.csv(SPY.options.all[[i]]$puts, file = paste("SPYdata", today, "Exp", exp[i], "puts.csv", sep = ""))
+  write.csv(SPY.options.all[[i]]$calls, file = paste("SPYdata", today, "Exp", exp[i], "calls.csv", sep = ""))
+}
+```
+

@@ -1,0 +1,68 @@
+---
+title: "Assignment 5"
+author: "You Wang"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Question 1
+- Use ```constrOptim()```:
+```{r}
+mu <- matrix(c(0.0427, 0.0015, 0.0285), nrow = 3, byrow = T)
+cov <- matrix(c(0.01, 0.002, 0.001, 0.002, 0.011, 0.003, 0.001, 0.003, 0.02), nrow = 3, byrow = T)
+
+f <- function(x){
+  return((t(x) %*% cov %*% x)/2)
+}
+
+e <- c(1, 1, 1)
+ui <- rbind(t(mu), -e)
+ci <- c(0.05, -1)
+
+result1 <- constrOptim(c(2,-2,0), f, grad = NULL,  ui, ci)
+result1$par
+result1$value
+```
+- Use ```solve.QP()```:
+```{r,warning=FALSE}
+library(quadprog)
+d <- c(0,0,0)
+A <- t(ui)
+b <- ci
+result2 <- solve.QP(D = cov, d, A, b)
+result2$solution
+result2$value
+```
+
+## Question 2
+```{r}
+t <- c(0.25, 0.5, 1, 2, 3, 5, 7, 10)
+r <- c(0.09, 0.11, 0.16, 0.2, 0.24, 0.36, 0.53, 0.64)
+tout <- c(0.75, 1.5, 4, 6, 8)
+rout <- approx(t, r, xout = tout)$y
+rout
+```
+
+## Question 3
+```{r}
+S0 <- 100
+K <- 100
+T1 <- 1
+r <- 0.05
+sigma <- 0.2
+
+d1 <- (log(S0/K) + (r+0.5*sigma^2)*T1)/(sigma*sqrt(T1))
+d2 <- d1 - sigma*sqrt(T1)
+
+f <- function(x){
+  S.T <- S0 * exp((r - sigma^2/2)*T1 + sigma * sqrt(T1) * x)
+  return((S.T - K) *dnorm(x))
+}
+
+BS.result <- S0*pnorm(d1) - exp(-r*T1)*K*pnorm(d2)
+int.result <- integrate(f, -d2, Inf)$value
+BS.result
+int.result
+```
+There's a little difference between the result and BS formula.
